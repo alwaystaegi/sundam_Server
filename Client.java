@@ -1,3 +1,5 @@
+
+
 import java.awt.*;
 import java.io.*;
 import java.net.Socket;
@@ -5,6 +7,7 @@ import java.nio.charset.StandardCharsets;
 import java.sql.*;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Random;
 import java.util.StringTokenizer;
 
 class Check{
@@ -41,11 +44,9 @@ public class Client extends Thread {
 
         try {
 
-            SimpleDateFormat time = new SimpleDateFormat("yyyy/MM/dd/HH:mm:ss");//현재 시간을 출력하기 위한 함수
             OutputStream out = socket.getOutputStream();
             DataOutputStream dout = new DataOutputStream(out);
             InputStream in = socket.getInputStream();
-            DataInputStream din = new DataInputStream(in);
             BufferedReader input = new BufferedReader(
                     new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
             StringTokenizer st;
@@ -56,7 +57,7 @@ public class Client extends Thread {
 
             Connection conn= DriverManager.getConnection(System.getenv("dburl"),System.getenv("dbid"),System.getenv("dbpassword"));
             Statement statement = conn.createStatement();
-            while (true) {
+            while (!conn.isClosed()) {
 
                 input.read(msg);
 
@@ -85,7 +86,7 @@ public class Client extends Thread {
 
 
                 //request메세지 받아오기
-                //만약에 받은 메시지가 공백이거나 Loop(ClientApplication.java)에서 보내는 쓰레기값일 경우 패스
+                //만약에 받은 메시지가 공백이거나 Loop(ClientAppli`cation.java)에서 보내는 쓰레기값일 경우 패스
                 //todo
 //                if (rMsg != null) {
                   if(msg!=null){
@@ -95,15 +96,18 @@ public class Client extends Thread {
 //                    Request req=new Request(list,statement,dout);
 
 
-                    if(req.getMessageType()>10) {
+                    if(req.getMessageType()!=10) {
 
                         String[] res = req.check(ipAddress,statement);
 
+                        System.out.println(res[0]) ;
 
-                            ResultSet resultSet1 = statement.executeQuery(res[0]);
-                            if(req.getDataType()==1||req.getDataType()==2) {
+                            if(res[0].indexOf("ERR")==0){
+                               System.out.println(res[0]) ;
+                            }
+                            else if(res.length==2) {
 
-
+                                ResultSet resultSet1 = statement.executeQuery(res[0]);
                                 ResultSet resultSet2 = statement.executeQuery(res[1]);
                                 while (resultSet1.next()) {
 
@@ -115,6 +119,7 @@ public class Client extends Thread {
                                 }
                             }
                             else {
+                                ResultSet resultSet1 = statement.executeQuery(res[0]);
                                 while (resultSet1.next()) {
 
                                     System.out.println(resultSet1.getString(1));
@@ -127,6 +132,7 @@ public class Client extends Thread {
 
                     }
 
+
                     }
 
 
@@ -135,6 +141,7 @@ public class Client extends Thread {
                     //this.response메세지 송신
 //						dout.writeUTF(this.response.type+"///"+this.response.statecode+"///"+this.response.value+"///"+"END");
 
+    conn.close();
 
                 break;
             }
@@ -148,7 +155,6 @@ public class Client extends Thread {
             System.out.println("예외가 발생했습니다....." + e);
 
         }
-
     }
 }
 
@@ -177,6 +183,13 @@ return data;
     }
 
 
+    /**
+     * @param list 입력받은 패킷 문자열 
+     * @param statement Database 상태 변수
+     * @param out 패킷을 보낼 아웃풋스트림
+     *            
+     */
+    
     Request(char[] list,Statement statement,DataOutputStream out) throws IOException {
         int now=0;
 
@@ -193,45 +206,31 @@ return data;
                       10> 데이터 삽입
                       else 오류
         */
-        if(this.messageType==1){
-
+        if(this.messageType==10){
+            ResultSet ret;
             try {
-                ResultSet ret=statement.executeQuery("Select * from test_h");
+                int id;
+                do{
+                id= 1000+(int)(Math.random()*8999);
+                String sql="Select * from dam where dam_id = " +id;
+                ret=statement.executeQuery("Select * from dam");
                 ret.last();
-                byte[] outputMessage={0x02,0x02,(byte)(ret.getRow()+1),0x03};
+                }while(ret.getRow()==0);
+                byte[] outputMessage={0x02,0x02,(byte)(id/100),(byte)(id%100),0x03};
+                String sql="INSERT INTO dam (DAM_ID,DAM_NAME) values ('"+id+"','DAM"+id+"')";
+                ResultSet res=statement.executeQuery(sql);
+
                 out.write(outputMessage);
 
             }
             catch (Exception e){
                 byte[] outputMessage={0x02,0x03,0x03};
-                out.write(outputMessage);
-            }
-        }else if(this.messageType==2){
-            try {
-                int id=(int)list[now++];
-                String sql="Select * from test_h where dam_id = " +id;
-                System.out.println(sql);
-                ResultSet ret=statement.executeQuery(sql);
-                ret.last();
-                System.out.println(ret.getRow());
-                if(ret.getRow()==0){
-//                    "INSERT INTO wal (DAM_ID,WATER_LEVEL,MESUR_DT) values ('"+damid+"','"+data+"','"+time[0]+""+time[1]+""+time[2]+""+time[3]+""+time[4]+""+time[5]+"')"
-                    sql="INSERT INTO TEST_H (DAM_ID,DAM_NAME) values ('"+id+"','test')";
-                    ResultSet res=statement.executeQuery(sql);
-
-                }
-                out.write(0x02);
-            }
-            catch (Exception e){
-                byte[] outputMessage={0x02,0x03,0x03};
-                System.out.println("에러발생");
                 out.write(outputMessage);
             }
         }
         else {
-            this.damid=this.messageType/10;
-            this.dataType=this.messageType%10;
-
+        damid=((int)list[now++]*100+(int)list[now++]);
+        System.out.println("댐 ID:"+damid);
             this.time = new int[]{
                     ((int)list[now++] - 48) * 1000 + ((int)list[now++] - 48) * 100 + ((int)list[now++] - 48) * 10 + ((int)list[now++] - 48)
                     , ((int)list[now++] - 48) * 10 + ((int)list[now++] - 48)
@@ -257,53 +256,13 @@ return data;
 
     }
 
-    Request(ArrayList<Integer> list,Statement statement,DataOutputStream out) throws IOException {
-        int now=0;
-        this.stx= list.get(now++);
-        System.out.println("stx:"+this.stx);
-        this.messageType=list.get(now++);
-        System.out.println("메시지 타입:"+this.messageType);
-        if(this.messageType==1){
-
-        try {
-            ResultSet ret=statement.executeQuery("Select * from test_h");
-
-            ret.last();
-            System.out.println(ret.getRow()+"요기3");
-            byte[] outputMessage={0x02,0x02,(byte)(ret.getRow()+1),0x03};
-            out.write(outputMessage);
-        }
-        catch (Exception e){
-            byte[] outputMessage={0x02,0x03,0x03};
-            out.write(outputMessage);
-        }
-        }
-        else {
-            this.time = new int[]{
-                    (list.get(now++) - 48) * 1000 + (list.get(now++) - 48) * 100 + (list.get(now++) - 48) * 10 + (list.get(now++) - 48)
-                    , (list.get(now++) - 48) * 10 + (list.get(now++) - 48)
-                    , (list.get(now++) - 48) * 10 + (list.get(now++) - 48)
-                    , (list.get(now++) - 48) * 10 + (list.get(now++) - 48)
-                    , (list.get(now++) - 48) * 10 + (list.get(now++) - 48)
-                    , (list.get(now++) - 48) * 10 + (list.get(now++) - 48)};
-
-            for (int i = 0; i < this.time.length; i++) {
-                if(i==0)System.out.print("시간값:");
-                System.out.print(this.time[i]);
-            }
-            System.out.println();
-            this.dataLength = list.get(now++) - 48;
-            System.out.println("데이터 길이:"+this.dataLength);
-            for (int i = 0; i < this.dataLength; i++) {
-                data += (list.get(now++) - 48) * (int) Math.pow(10, this.dataLength - i - 1);
-
-
-            }
-            System.out.println("데이터 값:"+this.data);
-        }
-            this.etx = list.get(now++);
-
-    }
+    /**
+     * @param ipAddress 아이피 주소 
+     * @param statement db접속 변수
+     *         
+     *@return SQL 문자열 혹은 에러 메세지
+     */
+    
     String[] check(String ipAddress,Statement statement){
        if(this.stx!=Check.STX){
            return new String[]{"ERR:STX is Incorrect"};
@@ -317,32 +276,44 @@ return data;
 //       }
 
 
-
-       switch (this.dataType){
-           case 1: return new String[]{"INSERT INTO wal (DAM_ID,WATER_LEVEL,MESUR_DT) values ('" + damid + "','" + data + "','" + time[0] + "" + time[1] + "" + time[2] + "" + time[3] + "" + time[4] + "" + time[5] + "') ",
-           "UPDATE test_h SET WATER_LEVEL="+data+",LAST_MESUR='" + time[0] + "" + time[1] + "" + time[2] + "" + time[3] + "" + time[4] + "" + time[5] + "' where DAM_ID = '"+damid+"'"};
-           case 2:return new String[]{"INSERT INTO light (DAM_ID,LIGHT_LEVEL,MESUR_DT) values ('" + damid + "','" + data + "','" + time[0] + "" + time[1] + "" + time[2] + "" + time[3] + "" + time[4] + "" + time[5] + "')",
-                   "UPDATE test_h SET LIGHT="+data+",LAST_MESUR='" + time[0] + "" + time[1] + "" + time[2] + "" + time[3] + "" + time[4] + "" + time[5] + "' where DAM_ID = '"+damid+"'"};
+    System.out.println("ASDF");
+       switch (this.messageType){
+           case 1: return new String[]{"INSERT INTO wal (DAM_ID,WATER_LEVEL,MESUR_DT) values ('" + damid + "','" + data + "','" +damid+"."+ String.format("%04d",time[0])+ "/" + String.format("%02d",time[1])+ "/" + String.format("%02d",time[2])+ " " + String.format("%02d",time[3]) + ":" + String.format("%02d",time[4])+":"+String.format("%02d",time[5]) + "') ",
+           "UPDATE dam SET WATER_LEVEL="+data+",LAST_MESUR='" + String.format("%04d",time[0])+ "/" + String.format("%02d",time[1])+ "/" + String.format("%02d",time[2])+ " " + String.format("%02d",time[3]) + ":" + String.format("%02d",time[4])+":"+String.format("%02d",time[5]) + "' where DAM_ID = '"+damid+"'"};
+           case 2:return new String[]{"INSERT INTO light (DAM_ID,LIGHT_LEVEL,MESUR_DT) values ('" + damid + "','" + data + "','" +damid+"."+ String.format("%04d",time[0])+ "/" + String.format("%02d",time[1])+ "/" + String.format("%02d",time[2])+ " " + String.format("%02d",time[3]) + ":" + String.format("%02d",time[4])+":"+String.format("%02d",time[5]) + "')",
+                   "UPDATE dam SET LIGHT="+data+",LAST_MESUR='" + String.format("%04d",time[0])+ "/" + String.format("%02d",time[1])+ "/" + String.format("%02d",time[2])+ " " + String.format("%02d",time[3]) + ":" + String.format("%02d",time[4])+":"+String.format("%02d",time[5]) + "' where DAM_ID = '"+damid+"'"};
 
            case 3: {
                try {
-                    String sql="SELECT WORK_NMPR FROM test_h WHERE DAM_ID='"+damid+"'";
+                    String sql="SELECT WORK_NMPR FROM dam WHERE DAM_ID='"+damid+"'";
                     System.out.println(sql);
                    ResultSet resultSet=statement.executeQuery(sql);
                    resultSet.last();
                    int value=resultSet.getInt(1);
-                   if(data==1) {
-                       value++;
-                   }
-                       else {
-                           if(data>0)value--;
-                   }
-                       return new String[]{"UPDATE test_h SET WORK_NMPR=" + (value) + ",LAST_MESUR='" + time[0] + "" + time[1] + "" + time[2] + "" + time[3] + "" + time[4] + "" + time[5] + "' where DAM_ID = '" + damid + "'"};
+                   value=value+data;
+                       return new String[]{"UPDATE dam SET WORK_NMPR=" + (value) + ",LAST_MESUR='" + String.format("%04d",time[0])+ "/" + String.format("%02d",time[1])+ "/" + String.format("%02d",time[2])+ " " + String.format("%02d",time[3]) + ":" + String.format("%02d",time[4])+":"+String.format("%02d",time[5]) + "' where DAM_ID = '" + damid + "'"};
                } catch (Exception e) {
                    System.out.println(e+"에러 발생");
                }
 
            }
+           case 4:{
+               try {
+                   String sql="SELECT WORK_NMPR FROM dam WHERE DAM_ID='"+damid+"'";
+                   System.out.println(sql);
+                   ResultSet resultSet=statement.executeQuery(sql);
+                   resultSet.last();
+                   int value=resultSet.getInt(1);
+                    value=value-data;
+                    if(value<0)value=0;
+                   return new String[]{"UPDATE dam SET WORK_NMPR=" + (value) + ",LAST_MESUR='" + String.format("%04d",time[0])+ "/" + String.format("%02d",time[1])+ "/" + String.format("%02d",time[2])+ " " + String.format("%02d",time[3]) + ":" + String.format("%02d",time[4])+":"+String.format("%02d",time[5]) + "' where DAM_ID = '" + damid + "'"};
+               } catch (Exception e) {
+                   System.out.println(e+"에러 발생");
+               }
+
+           }
+
+
            default: return new String[]{"ERR: dataType is Incorrect"};
        }
 

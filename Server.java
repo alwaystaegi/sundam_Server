@@ -1,8 +1,8 @@
-import java.io.DataOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.Timer;
@@ -16,22 +16,26 @@ public class Server {
     public static void main(String[] args) {
         Socket socket=null;
         Timer timer=new Timer();
+        WaterLevel waterLevel= new WaterLevel();
+        int b=waterLevel.test();
         try {
             server.ss = new ServerSocket(55555);
             System.out.println("서버소켓이 정상적으로 생성되었습니다.....");
 
             while(true) {
                 socket = server.ss.accept();
+
+                byte[] a=new byte[50];
+                String packet;
+                InputStream in = socket.getInputStream();
+                BufferedReader input = new BufferedReader(
+                        new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
+                in.read(a);
+
                 Client c = new Client(socket);
                 clients.add(c);
                 c.start();
-                TimerTask t= new TimerTask() {
-                    @Override
-                    public void run() {
-                    }
 
-                };
-                timer.schedule(t,10);
             }
 
 
