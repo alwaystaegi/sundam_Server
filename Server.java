@@ -16,21 +16,12 @@ public class Server {
     public static void main(String[] args) {
         Socket socket=null;
         Timer timer=new Timer();
-        WaterLevel waterLevel= new WaterLevel();
-        int b=waterLevel.test();
         try {
             server.ss = new ServerSocket(55555);
             System.out.println("서버소켓이 정상적으로 생성되었습니다.....");
 
             while(true) {
                 socket = server.ss.accept();
-
-                byte[] a=new byte[50];
-                String packet;
-                InputStream in = socket.getInputStream();
-                BufferedReader input = new BufferedReader(
-                        new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
-                in.read(a);
 
                 Client c = new Client(socket);
                 clients.add(c);

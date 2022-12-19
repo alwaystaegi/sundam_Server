@@ -21,10 +21,7 @@ public class Client extends Thread {
 
 
     Socket socket = null;
-
-    Client(Socket _socket) {
-        this.socket = _socket;
-    }
+    Client(Socket _socket){this.socket= _socket;}
     int DamID=1;
 
 
@@ -38,6 +35,8 @@ public class Client extends Thread {
             "           STX&ETX=02,03 고정, 종별: 0A:조도센서 0B:출입 현황 0C:수위센서 ip:ip1.ip2.ip3.ip4 ";
 
     Response response = new Response();//this.response메세지의 구성내용들을 넣어둔 클래스
+
+
 
 
     public void run() {
@@ -61,15 +60,15 @@ public class Client extends Thread {
 
                 input.read(msg);
 
-                for(int i=0;i<msg.length;i++){
-                    if(i==0){
-                    System.out.print("받은 패킷:");}
-                    System.out.print((int)msg[i]);
-                    if(i==msg.length-1){
-                        System.out.println();
-                    }
-                    else System.out.print(',');
-                }
+//                for(int i=0;i<msg.length;i++){
+//                    if(i==0){
+//                    System.out.print("받은 패킷:");}
+//                    System.out.print((int)msg[i]);
+//                    if(i==msg.length-1){
+//                        System.out.println();
+//                    }
+//                    else System.out.print(',');
+//                }
 
                 /*todo
 
@@ -195,12 +194,12 @@ return data;
 
 
         this.stx= (int)list[now++];
-        System.out.println("stx:"+this.stx);
+//        System.out.println("stx:"+this.stx);
         if(this.stx!=2){
             return;
         }
         this.messageType=(int)list[now++];
-        System.out.println("메시지 타입:"+this.messageType);
+//        System.out.println("메시지 타입:"+this.messageType);
         /*messageType 1= 댐 아이디 구하기
                       2= 댐 리스트에 아이디가 있는 지 확인
                       10> 데이터 삽입
@@ -230,7 +229,7 @@ return data;
         }
         else {
         damid=((int)list[now++]*100+(int)list[now++]);
-        System.out.println("댐 ID:"+damid);
+//        System.out.println("댐 ID:"+damid);
             this.time = new int[]{
                     ((int)list[now++] - 48) * 1000 + ((int)list[now++] - 48) * 100 + ((int)list[now++] - 48) * 10 + ((int)list[now++] - 48)
                     , ((int)list[now++] - 48) * 10 + ((int)list[now++] - 48)
@@ -238,19 +237,19 @@ return data;
                     , ((int)list[now++] - 48) * 10 + ((int)list[now++] - 48)
                     , ((int)list[now++] - 48) * 10 + ((int)list[now++] - 48)
                     , ((int)list[now++] - 48) * 10 + ((int)list[now++] - 48)};
-            System.out.print("시간 값:");
+//            System.out.print("시간 값:");
             for (int i = 0; i < this.time.length; i++) {
-                System.out.print(this.time[i]);
+//                System.out.print(this.time[i]);
             }
             System.out.println();
             this.dataLength = (int)list[now++] - 48;
-            System.out.println("데이터 길이:"+this.dataLength);
+//            System.out.println("데이터 길이:"+this.dataLength);
             for (int i = 0; i < this.dataLength; i++) {
                 data += ((int)list[now++] - 48) * (int) Math.pow(10, this.dataLength - i - 1);
 
 
             }
-            System.out.println("데이터값"+this.data);
+//            System.out.println("데이터값"+this.data);
         }
         this.etx = (int)list[now++];
 
